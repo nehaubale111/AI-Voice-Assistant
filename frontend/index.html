@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Voice Assistant</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+    }
+    h1 {
+      margin-bottom: 4px;
+    }
+    .subtitle {
+      font-size: 0.9rem;
+      color: #9ca3af;
+      margin-bottom: 20px;
+    }
+    .container {
+      background: #020617;
+      border-radius: 16px;
+      padding: 20px;
+      max-width: 700px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+      border: 1px solid #1e293b;
+    }
+    .btn {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 24px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin: 4px;
+    }
+    .btn-primary {
+      background: #22c55e;
+      color: #022c22;
+      font-weight: 600;
+    }
+    .btn-secondary {
+      background: #111827;
+      color: #e5e7eb;
+      border: 1px solid #374151;
+    }
+    .status {
+      font-size: 0.9rem;
+      color: #a5b4fc;
+      margin-top: 8px;
+      min-height: 20px;
+    }
+    textarea {
+      width: 100%;
+      border-radius: 12px;
+      padding: 10px;
+      margin-top: 12px;
+      background: #020617;
+      border: 1px solid #334155;
+      color: #e5e7eb;
+      resize: vertical;
+      min-height: 60px;
+    }
+    .output {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #020617;
+      border: 1px solid #1e293b;
+      max-height: 250px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-size: 0.95rem;
+    }
+    .context {
+      font-size: 0.75rem;
+      color: #9ca3af;
+      margin-top: 8px;
+    }
+    .label {
+      font-size: 0.85rem;
+      color: #9ca3af;
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎤 AI Voice Assistant</h1>
+  <div class="subtitle">Speak your question, get an AI answer with your documents as context.</div>
+
+  <div class="container">
+    <button id="startBtn" class="btn btn-primary">Start Listening 🎙️</button>
+    <button id="stopBtn" class="btn btn-secondary">Stop</button>
+    <div id="status" class="status"></div>
+
+    <div class="label">Recognized Text (you can also edit/manual type):</div>
+    <textarea id="queryInput" placeholder="Say something or type your question here..."></textarea>
+
+    <button id="askBtn" class="btn btn-primary">Ask AI 🤖</button>
+
+    <div class="label">Assistant Answer:</div>
+    <div id="answerOutput" class="output"></div>
+
+    <div class="label">Context from Documents:</div>
+    <div id="contextOutput" class="context"></div>
+  </div>
+
+  <script>
+    const apiBase = "http://127.0.0.1:8000"; // FastAPI backend
+
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const statusEl = document.getElementById("status");
+    const queryInput = document.getElementById("queryInput");
+    const askBtn = document.getElementById("askBtn");
+    const answerOutput = document.getElementById("answerOutput");
+    const contextOutput = document.getElementById("contextOutput");
+
+    let recognition = null;
+    let listening = false;
+
+    function initSpeechRecognition() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        statusEl.textContent = "Speech recognition not supported in this browser. Use Chrome on desktop.";
+        startBtn.disabled = true;
+        stopBtn.disabled = true;
+        return;
+      }
+
+      recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = true;
+      recognition.continuous = true;
+
+      recognition.onstart = () => {
+        listening = true;
+        statusEl.textContent = "Listening... speak now.";
+      };
+
+      recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event);
+        statusEl.textContent = "Error: " + event.error;
+      };
+
+      recognition.onend = () => {
+        listening = false;
+        statusEl.textContent = "Stopped listening.";
+      };
+
+      recognition.onresult = (event) => {
+        let finalTranscript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + " ";
+          }
+        }
+        if (finalTranscript) {
+          queryInput.value = queryInput.value + " " + finalTranscript;
+        }
+      };
+    }
+
+    function startListening() {
+      if (!recognition) return;
+      if (!listening) recognition.start();
+    }
+
+    function stopListening() {
+      if (recognition && listening) recognition.stop();
+    }
+
+    async function askAI() {
+      const query = queryInput.value.trim();
+      if (!query) {
+        statusEl.textContent = "Please type or speak a question.";
+        return;
+      }
+
+      statusEl.textContent = "Thinking...";
+      answerOutput.textContent = "";
+      contextOutput.textContent = "";
+
+      try {
+        const res = await fetch(`${apiBase}/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+        });
+
+        if (!res.ok) {
+          throw new Error("Request failed: " + res.status);
+        }
+
+        const data = await res.json();
+        const answer = data.answer || "(No answer)";
+        const contextChunks = data.context_chunks || [];
+
+        answerOutput.textContent = answer;
+        contextOutput.textContent = contextChunks.length
+          ? contextChunks.map((c, i) => `#${i + 1}: ${c}`).join("\n\n")
+          : "(No document context used.)";
+
+        if ("speechSynthesis" in window) {
+          const utterance = new SpeechSynthesisUtterance(answer);
+          utterance.rate = 1;
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.speak(utterance);
+        }
+
+        statusEl.textContent = "Done ✅";
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Error: " + err.message;
+      }
+    }
+
+    window.addEventListener("load", () => {
+      initSpeechRecognition();
+    });
+
+    startBtn.addEventListener("click", startListening);
+    stopBtn.addEventListener("click", stopListening);
+    askBtn.addEventListener("click", askAI);
+  </script>
+</body>
+</html>

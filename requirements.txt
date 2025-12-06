@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+numpy
+sentence-transformers
+openai>=1.0.0
+pydantic

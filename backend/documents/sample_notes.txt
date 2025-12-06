@@ -1,0 +1,5 @@
+Artificial Intelligence (AI) is the field of computer science that focuses on creating systems that can perform tasks that normally require human intelligence. Examples include understanding language, recognizing images, making decisions, and learning from data.
+
+Machine Learning (ML) is a subset of AI where algorithms learn patterns from data instead of being explicitly programmed for every rule. Common types are supervised learning, unsupervised learning, and reinforcement learning.
+
+Deep Learning uses neural networks with many layers to automatically learn complex features from large amounts of data. It is used in image recognition, speech recognition, and natural language processing.
