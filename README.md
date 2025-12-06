@@ -1,1 +1,1 @@
-A lightweight, modular AI-powered voice assistant that listens to user commands, processes them using RAG (Retrieval-Augmented Generation), and responds with accurate answers using LLMs.
+A real-time AI voice assistant that converts speech to text, retrieves relevant information using a RAG pipeline, and generates intelligent answers using OpenAI models. Supports voice input, text queries, and document-aware responses.
